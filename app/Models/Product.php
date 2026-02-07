@@ -4,82 +4,79 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Category;
+use App\Models\Subcategory;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'title',
         'description',
         'price',
         'negotiable',
-        'parent_id',
-        'type',
+        'category_id',
+        'subcategory_id',
+        'tags',
+        'email',
+        'phone',
+        'country_code',
+        'image',
+        'images',
+        'user_id', // إذا كان لديك نظام مستخدمين
     ];
 
     protected $casts = [
         'negotiable' => 'boolean',
+        'price' => 'decimal:2',
+        'images' => 'array',
     ];
 
-    /*
-    |--------------------------------------------------------------------------
-    | Parent / Children Relations
-    |--------------------------------------------------------------------------
-    */
-
-    // Parent of this product (Category or Subcategory)
-    public function parent()
-    {
-        return $this->belongsTo(Product::class, 'parent_id');
-    }
-
-    // Children of this product (Subcategories or Products)
-    public function children()
-    {
-        return $this->hasMany(Product::class, 'parent_id');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | Explicit Category / Subcategory Relations
-    |--------------------------------------------------------------------------
-    */
-
-    // Product → Subcategory
-    public function subcategory()
-    {
-        return $this->belongsTo(Product::class, 'parent_id')
-                    ->where('type', 'subcategory');
-    }
-
-    // Product → Category (through Subcategory)
+    // العلاقة مع التصنيف
     public function category()
     {
-        return $this->belongsTo(Product::class, 'parent_id')
-                    ->where('type', 'category')
-                    ->orWhereHas('parent', function($query) {
-                        $query->where('type', 'category');
-                    });
+            return $this->belongsTo(Category::class);
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | Helpers for Category & Subcategory
-    |--------------------------------------------------------------------------
-    */
-
-    // Category → Subcategories
-    public function subcategories()
+    // العلاقة مع التصنيف الفرعي
+    public function subcategory()
     {
-        return $this->hasMany(Product::class, 'parent_id')
-                    ->where('type', 'subcategory');
+        return $this->belongsTo(Subcategory::class, 'subcategory_id');
     }
 
-    // Subcategory → Products
-    public function products()
+    // نطاق النشاط
+    public function scopeActive($query)
     {
-        return $this->hasMany(Product::class, 'parent_id')
-                    ->where('type', 'product');
+        // Older code expected a 'status' column; if none exists, return query unmodified.
+        return $query;
+    }
+
+    // نطاق البحث
+    public function scopeSearch($query, $search)
+    {
+        return $query->where('title', 'like', '%' . $search . '%')
+                    ->orWhere('description', 'like', '%' . $search . '%')
+                    ->orWhere('tags', 'like', '%' . $search . '%');
+    }
+
+    // الوصول لمسار الصورة
+    public function getImageUrlAttribute()
+    {
+        return $this->image ? asset('storage/products/' . $this->image) : null;
+    }
+
+    // الوصول لمسارات الصور المتعددة
+    public function getImagesUrlsAttribute()
+    {
+        $images = $this->images ?: [];
+        if (!is_array($images)) {
+            $images = json_decode($images, true) ?? [];
+        }
+
+        return array_map(function ($image) {
+            return asset('storage/products/' . $image);
+        }, $images);
     }
 }
