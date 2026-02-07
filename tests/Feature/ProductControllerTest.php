@@ -19,7 +19,7 @@ class ProductControllerTest extends TestCase
     {
         parent::setUp();
         // create category and subcategory
-        $this->category = Category::factory()->create(['status' => 1]);
+        $this->category = Category::factory()->create(['is_active' => 1]);
         $this->subcategory = Subcategory::factory()->create([
             'category_id' => $this->category->id,
             'status' => 1,
@@ -33,8 +33,8 @@ class ProductControllerTest extends TestCase
 
         $this->actingAs($this->user);
 
-        $file1 = UploadedFile::fake()->image('photo1.jpg');
-        $file2 = UploadedFile::fake()->image('photo2.png');
+        $file1 = UploadedFile::fake()->create('photo1.jpg', 100, 'image/jpeg');
+        $file2 = UploadedFile::fake()->create('photo2.png', 150, 'image/png');
 
         $response = $this->post(route('products.store'), [
             'title' => 'Test Product',
@@ -64,6 +64,10 @@ class ProductControllerTest extends TestCase
         foreach ($product->images as $img) {
             Storage::disk('public')->assertExists('products/' . $img);
         }
+
+        // single image stored (compatibility)
+        $this->assertNotNull($product->image);
+        Storage::disk('public')->assertExists('products/' . $product->image);
     }
 
     public function test_validation_errors_for_missing_fields()
@@ -88,7 +92,7 @@ class ProductControllerTest extends TestCase
             'images' => [],
         ]);
 
-        $file = UploadedFile::fake()->image('new.jpg');
+        $file = UploadedFile::fake()->create('new.jpg', 120, 'image/jpeg');
 
         $response = $this->put(route('products.update', $product->id), [
             'title' => 'Updated',
@@ -106,6 +110,30 @@ class ProductControllerTest extends TestCase
         foreach ($product->images as $img) {
             Storage::disk('public')->assertExists('products/' . $img);
         }
+    }
+
+    public function test_index_displays_product_image()
+    {
+        Storage::fake('public');
+        $this->actingAs($this->user);
+
+        // create product with image (store dummy file)
+        $filename = time() . '_' . uniqid() . '.jpg';
+        Storage::disk('public')->put('products/' . $filename, 'dummy-image-content');
+
+        $product = Product::factory()->create([
+            'title' => 'ShowImage',
+            'category_id' => $this->category->id,
+            'subcategory_id' => $this->subcategory->id,
+            'price' => 10,
+            'image' => $filename,
+        ]);
+
+        $response = $this->get(route('products.index'));
+        $response->assertStatus(200);
+
+        // The rendered page should contain the image filename (URL appears in JSON payload)
+        $this->assertStringContainsString($filename, $response->getContent());
     }
 
     public function test_delete_restore_and_force_delete()

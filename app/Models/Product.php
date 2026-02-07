@@ -34,6 +34,12 @@ class Product extends Model
         'images' => 'array',
     ];
 
+    // Append accessor URLs so Inertia receives usable image URLs
+    protected $appends = [
+        'image_url',
+        'images_urls',
+    ];
+
     // العلاقة مع التصنيف
     public function category()
     {

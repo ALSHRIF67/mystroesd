@@ -15,7 +15,7 @@ class CategoryFactory extends Factory
         return [
             'name' => ucfirst($name),
             'slug' => Str::slug($name . '-' . $this->faker->unique()->numberBetween(1, 9999)),
-            'status' => 1,
+            'is_active' => 1,
         ];
     }
 }
