@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\Rules;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\QueryException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Illuminate\Support\Facades\Log;
 
 class RegisteredUserController extends Controller
 {
@@ -33,34 +35,35 @@ class RegisteredUserController extends Controller
     public function store(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')],
-            'password' => ['required', 'string', 'min:6', 'confirmed'],
-            'phone' => ['required', 'string', 'max:20', Rule::unique('users', 'phone')],
+            'phone' => ['required', 'regex:/^[0-9]{6,20}$/', Rule::unique('users', 'phone')],
             'country_code' => ['required', 'string', 'max:6'],
+            'password' => ['required', 'string', 'min:6', 'confirmed'],
             'is_marketing_subscribed' => ['sometimes', 'boolean'],
             'terms_accepted' => ['accepted'],
         ]);
 
-        // create user — guard against race conditions that may still trigger unique constraint
         try {
-            $user = User::create([
-                'name' => $validated['name'],
+            $data = [
+                // server-side: generate `name` from the provided `first_name` only
+                'name' => trim($validated['first_name']),
                 'email' => $validated['email'],
+                'password' => Hash::make($validated['password']),
                 'phone' => $validated['phone'],
                 'country_code' => $validated['country_code'],
                 'is_marketing_subscribed' => $request->boolean('is_marketing_subscribed'),
                 'terms_accepted' => true,
-                'password' => Hash::make($validated['password']),
-            ]);
+            ];
+
+            // Use Eloquent create (prevent mass-assignment issues via fillable on model)
+            $user = User::create($data);
         } catch (QueryException $e) {
-            // MySQL duplicate entry -> SQLSTATE 23000 / driver error code 1062
             $errorInfo = $e->errorInfo ?? null;
             $driverCode = $errorInfo[1] ?? null;
             $driverMsg = $errorInfo[2] ?? $e->getMessage();
 
             if ($driverCode === 1062 || str_contains($driverMsg, 'Duplicate')) {
-                // map message to a field where possible
                 if (str_contains($driverMsg, 'users_phone_unique') || str_contains($driverMsg, 'phone')) {
                     return back()->withInput()->withErrors(['phone' => 'رقم الهاتف مسجل بالفعل.']);
                 }
@@ -69,11 +72,10 @@ class RegisteredUserController extends Controller
                     return back()->withInput()->withErrors(['email' => 'البريد الإلكتروني مسجل بالفعل.']);
                 }
 
-                // generic unique violation
                 return back()->withInput()->withErrors(['email' => 'قيمة مكررة موجودة في قاعدة البيانات.']);
             }
 
-            throw $e; // rethrow unexpected DB errors
+            throw $e;
         }
 
         event(new Registered($user));

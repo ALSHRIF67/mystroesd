@@ -25,6 +25,7 @@ use Illuminate\Support\Facades\Route;
 
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\SellerController;
 use Illuminate\Foundation\Application;
 use Inertia\Inertia;
 
@@ -42,6 +43,9 @@ Route::get('/', function () {
         'phpVersion' => PHP_VERSION,
     ]);
 });
+
+// Public seller pages (SEO-friendly optional slug)
+Route::get('/seller/{user}/{slug?}', [SellerController::class, 'show'])->name('seller.show');
 
 /*
 |--------------------------------------------------------------------------
@@ -90,10 +94,26 @@ Route::middleware('auth')->group(function () {
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 
     // Products (CRUD كامل)
+    // Backwards-compatible redirect: handle old/incorrect frontend path
+    Route::get('products/MyProducts', function () {
+        return redirect()->route('products.mine');
+    });
+    // Temporary debug route to verify auth in tests
+    Route::get('debug-mine', function () {
+        return auth()->check() ? response('auth-ok', 200) : response('no-auth', 401);
+    });
+    // Seller: my products (must be registered before resource to avoid
+    // the resource `show` route capturing the 'mine' segment as {product})
+    Route::get('products/mine', [ProductController::class, 'mine'])->name('products.mine');
+   Route::get('/my-products/pending', [ProductController::class, 'pending'])->name('products.pending');
+    // Products resource (CRUD كامل)
     Route::resource('products', ProductController::class);
     // Additional product routes for restore and permanent delete
     Route::post('products/{id}/restore', [ProductController::class, 'restore'])->name('products.restore');
     Route::delete('products/{id}/force-delete', [ProductController::class, 'forceDelete'])->name('products.forceDelete');
+    // Admin actions: approve / reject
+    Route::post('products/{id}/approve', [ProductController::class, 'approve'])->name('products.approve');
+    Route::post('products/{id}/reject', [ProductController::class, 'reject'])->name('products.reject');
 });
 
 Route::middleware('api')->group(function () {

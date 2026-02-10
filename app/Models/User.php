@@ -19,14 +19,13 @@ class User extends Authenticatable
      */
     protected $fillable = [
         'name',
-        'first_name',
-        'last_name',
         'email',
         'password',
         'phone',
         'country_code',
         'is_marketing_subscribed',
         'terms_accepted',
+        'role',
     ];
 
     /**
@@ -48,5 +47,18 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'is_marketing_subscribed' => 'boolean',
         'terms_accepted' => 'boolean',
+        'role' => 'string',
     ];
+
+    // Helper
+    public function isAdmin()
+    {
+        return $this->role === 'admin';
+    }
+
+    // Relation: a user (seller) can have many products
+    public function products()
+    {
+        return $this->hasMany(\App\Models\Product::class, 'user_id');
+    }
 }

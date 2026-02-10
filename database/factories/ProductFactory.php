@@ -17,6 +17,8 @@ class ProductFactory extends Factory
             'negotiable' => $this->faker->boolean(30),
             'category_id' => null,
             'subcategory_id' => null,
+            // assign created product to currently authenticated user when available
+            'user_id' => auth()->id() ?? \App\Models\User::factory(),
             'tags' => implode(',', $this->faker->words(3)),
             'email' => $this->faker->safeEmail(),
             'phone' => $this->faker->numerify('9########'),

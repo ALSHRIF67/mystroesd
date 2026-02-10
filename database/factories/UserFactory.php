@@ -34,6 +34,7 @@ class UserFactory extends Factory
             'country_code' => '+249',
             'is_marketing_subscribed' => false,
             'terms_accepted' => true,
+            'role' => 'seller',
         ];
     }
 

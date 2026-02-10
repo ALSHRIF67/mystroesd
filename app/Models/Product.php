@@ -25,25 +25,90 @@ class Product extends Model
         'country_code',
         'image',
         'images',
-        'user_id', // إذا كان لديك نظام مستخدمين
+        'status',
+        'user_id',
+        'approved_by',
+        'approved_at',
+        'published_at',
+        'rejection_reason',
+        'moderation_notes',
     ];
 
     protected $casts = [
         'negotiable' => 'boolean',
         'price' => 'decimal:2',
         'images' => 'array',
+        'approved_at' => 'datetime',
+        'published_at' => 'datetime',
     ];
 
     // Append accessor URLs so Inertia receives usable image URLs
     protected $appends = [
         'image_url',
         'images_urls',
+        'formatted_price',
+        'status_text',
     ];
+
+    // Product status constants
+    public const STATUS_PENDING = 'pending';
+    public const STATUS_APPROVED = 'approved';
+    public const STATUS_ARCHIVED = 'archived';
+    public const STATUS_DRAFT = 'draft';
+    public const STATUS_REJECTED = 'rejected';
+
+    // حالة النص للعرض
+    public const STATUS_TEXTS = [
+        self::STATUS_PENDING => 'قيد المراجعة',
+        self::STATUS_APPROVED => 'تمت الموافقة',
+        self::STATUS_ARCHIVED => 'مؤرشف',
+        self::STATUS_DRAFT => 'مسودة',
+        self::STATUS_REJECTED => 'مرفوض',
+    ];
+
+    // Scope to get only live/approved products
+    public function scopeLive($query)
+    {
+        return $query->where('status', self::STATUS_APPROVED);
+    }
+
+    // تحديث نطاق النشاط ليعرض المنتجات المعتمدة فقط
+    public function scopeActive($query)
+    {
+        return $query->where('status', self::STATUS_APPROVED);
+    }
+
+    // إضافة النطاقات الأخرى للحالات
+    public function scopePending($query)
+    {
+        return $query->where('status', self::STATUS_PENDING);
+    }
+
+    public function scopeDraft($query)
+    {
+        return $query->where('status', self::STATUS_DRAFT);
+    }
+
+    public function scopeArchived($query)
+    {
+        return $query->where('status', self::STATUS_ARCHIVED);
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('status', self::STATUS_REJECTED);
+    }
+
+    // نطاق للمنتجات الخاصة بمستخدم معين
+    public function scopeOwnedBy($query, $userId)
+    {
+        return $query->where('user_id', $userId);
+    }
 
     // العلاقة مع التصنيف
     public function category()
     {
-            return $this->belongsTo(Category::class);
+        return $this->belongsTo(Category::class);
     }
 
     // العلاقة مع التصنيف الفرعي
@@ -52,11 +117,16 @@ class Product extends Model
         return $this->belongsTo(Subcategory::class, 'subcategory_id');
     }
 
-    // نطاق النشاط
-    public function scopeActive($query)
+    // العلاقة مع المستخدم (البائع)
+    public function user()
     {
-        // Older code expected a 'status' column; if none exists, return query unmodified.
-        return $query;
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
+    // العلاقة مع المستخدم الذي وافق على المنتج
+    public function approvedBy()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approved_by');
     }
 
     // نطاق البحث
@@ -70,7 +140,10 @@ class Product extends Model
     // الوصول لمسار الصورة
     public function getImageUrlAttribute()
     {
-        return $this->image ? asset('storage/products/' . $this->image) : null;
+        if (!$this->image) {
+            return asset('storage/products/placeholder.png');
+        }
+        return asset('storage/products/' . $this->image);
     }
 
     // الوصول لمسارات الصور المتعددة
@@ -81,8 +154,66 @@ class Product extends Model
             $images = json_decode($images, true) ?? [];
         }
 
+        if (empty($images)) {
+            return [asset('storage/products/placeholder.png')];
+        }
+
         return array_map(function ($image) {
             return asset('storage/products/' . $image);
         }, $images);
+    }
+
+    // سعر منسق
+    public function getFormattedPriceAttribute()
+    {
+        return number_format($this->price, 2) . ' $';
+    }
+
+    // نص الحالة باللغة العربية
+    public function getStatusTextAttribute()
+    {
+        return self::STATUS_TEXTS[$this->status] ?? $this->status;
+    }
+
+    // طرق مساعدة للتحقق من الحالة
+    public function isPending()
+    {
+        return $this->status === self::STATUS_PENDING;
+    }
+
+    public function isApproved()
+    {
+        return $this->status === self::STATUS_APPROVED;
+    }
+
+    public function isDraft()
+    {
+        return $this->status === self::STATUS_DRAFT;
+    }
+
+    public function isArchived()
+    {
+        return $this->status === self::STATUS_ARCHIVED;
+    }
+
+    public function canBeEditedByUser()
+    {
+        // يمكن للمستخدم تعديل المنتج إذا كان في حالة مسودة أو معلق
+        return $this->isDraft() || $this->isPending();
+    }
+
+    // حدث عند الإنشاء
+    protected static function booted()
+    {
+        static::creating(function ($product) {
+            if (auth()->check() && !$product->user_id) {
+                $product->user_id = auth()->id();
+            }
+            
+            // إذا لم يتم تحديد حالة، اجعلها pending
+            if (!$product->status) {
+                $product->status = self::STATUS_PENDING;
+            }
+        });
     }
 }

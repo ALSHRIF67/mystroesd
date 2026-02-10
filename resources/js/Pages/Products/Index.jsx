@@ -4,6 +4,17 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 export default function Index({ products = [] }) {
     const { flash = {} } = usePage().props;
 
+    const badgeClasses = (status) => {
+        switch (status) {
+            case 'approved':
+                return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300';
+            case 'rejected':
+                return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300';
+            default:
+                return 'inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-300';
+        }
+    };
+
     const handleDelete = (productId) => {
         if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
             router.delete(route('products.destroy', productId));
@@ -107,6 +118,11 @@ export default function Index({ products = [] }) {
                                                                 السعر
                                                             </th>
                                                             
+                                                            {/* Status Column */}
+                                                            <th className="hidden sm:table-cell px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                                                                الحالة
+                                                            </th>
+
                                                             {/* Actions Column */}
                                                             <th className="px-4 sm:px-6 py-3 text-right text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                                                                 الإجراءات
@@ -180,6 +196,13 @@ export default function Index({ products = [] }) {
                                                                                 ✓ قابل للتفاوض
                                                                             </div>
                                                                         )}
+                                                                    </div>
+                                                                </td>
+
+                                                                {/* Status */}
+                                                                <td className="hidden sm:table-cell px-4 sm:px-6 py-4 whitespace-nowrap">
+                                                                    <div className="text-right">
+                                                                        <span className={badgeClasses(product.status)}>{product.status_text || product.status}</span>
                                                                     </div>
                                                                 </td>
                                                                 

@@ -5,6 +5,14 @@ import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 export default function Create({ categories = [], auth }) {
     console.log('Create component loaded with categories:', categories);
 
+    // Access guard: only sellers can create products
+    useEffect(() => {
+        if (auth && auth.user && auth.user.role && auth.user.role !== 'seller') {
+            // Redirect non-sellers to dashboard
+            router.visit(route('dashboard'));
+        }
+    }, []);
+
     const { data, setData, post, processing, errors, reset } = useForm({
         title: '',
         description: '',
@@ -18,6 +26,59 @@ export default function Create({ categories = [], auth }) {
         country_code: '+249',
         images: [],
     });
+
+    const saveDraft = (e) => {
+        e?.preventDefault();
+        setErrorMessage('');
+
+        const formData = new FormData();
+        const formDataFields = {
+            title: data.title,
+            description: data.description,
+            price: data.price,
+            negotiable: data.negotiable ? 1 : 0,
+            category_id: data.category_id,
+            subcategory_id: data.subcategory_id,
+            tags: data.tags,
+            email: data.email,
+            phone: data.phone,
+            country_code: data.country_code || '+249',
+            status: 'draft',
+        };
+
+        Object.keys(formDataFields).forEach(key => {
+            if (formDataFields[key] !== undefined && formDataFields[key] !== null) {
+                formData.append(key, formDataFields[key]);
+            }
+        });
+
+        if (data.images && data.images.length > 0) {
+            data.images.forEach((file, index) => {
+                if (file instanceof File) {
+                    formData.append(`images[${index}]`, file);
+                }
+            });
+
+            if (data.images[0] instanceof File) {
+                formData.append('image', data.images[0]);
+            }
+        }
+
+        router.post(route('products.store'), formData, {
+            forceFormData: true,
+            onStart: () => setIsLoading(true),
+            onSuccess: () => {
+                setIsLoading(false);
+                reset();
+                setImagePreviews([]);
+                router.visit(route('products.mine'));
+            },
+            onError: (errors) => {
+                setIsLoading(false);
+                if (errors.message) setErrorMessage(errors.message);
+            }
+        });
+    };
 
     const [subcategories, setSubcategories] = useState([]);
     const [activeStep, setActiveStep] = useState(1);
@@ -957,6 +1018,7 @@ export default function Create({ categories = [], auth }) {
                                         <>
                                             <button 
                                                 type="button"
+                                                onClick={saveDraft}
                                                 className="text-gray-600 font-medium px-6 py-3.5 rounded-xl border-2 border-gray-300 hover:bg-gray-100 transition-all shadow-sm"
                                                 disabled={isLoading}
                                             >

@@ -20,8 +20,7 @@ class RegistrationTest extends TestCase
     public function test_new_users_can_register(): void
     {
         $response = $this->post('/register', [
-            'first_name' => 'Test',
-            'last_name' => 'User',
+            'first_name' => 'Test Store',
             'email' => 'test@example.com',
             'phone' => '912345678',
             'country_code' => '+249',
@@ -35,7 +34,7 @@ class RegistrationTest extends TestCase
 
         $this->assertDatabaseHas('users', [
             'email' => 'test@example.com',
-            'first_name' => 'Test',
+            'name' => 'Test Store',
             'phone' => '912345678',
         ]);
     }
@@ -46,13 +45,74 @@ class RegistrationTest extends TestCase
 
         $response = $this->post('/register', [
             'first_name' => 'Dup',
-            'last_name' => 'Phone',
             'email' => 'dupphone@example.com',
             'phone' => '900000001',
             'country_code' => '+249',
             'password' => 'password',
             'password_confirmation' => 'password',
             'terms_accepted' => 'on',
+        ]);
+
+        $response->assertSessionHasErrors('phone');
+    }
+
+    public function test_registration_fails_when_email_exists(): void
+    {
+        User::factory()->create(['email' => 'exists@example.com']);
+
+        $response = $this->post('/register', [
+            'first_name' => 'Exists',
+            'email' => 'exists@example.com',
+            'phone' => '923456789',
+            'country_code' => '+249',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'terms_accepted' => true,
+        ]);
+
+        $response->assertSessionHasErrors('email');
+    }
+
+    public function test_registration_fails_when_password_too_short(): void
+    {
+        $response = $this->post('/register', [
+            'first_name' => 'Shortpw',
+            'email' => 'shortpw@example.com',
+            'phone' => '933333333',
+            'country_code' => '+249',
+            'password' => '123',
+            'password_confirmation' => '123',
+            'terms_accepted' => true,
+        ]);
+
+        $response->assertSessionHasErrors('password');
+    }
+
+    public function test_registration_fails_when_terms_not_accepted(): void
+    {
+        $response = $this->post('/register', [
+            'first_name' => 'Noterms',
+            'email' => 'noterms@example.com',
+            'phone' => '944444444',
+            'country_code' => '+249',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            // terms_accepted omitted or false
+        ]);
+
+        $response->assertSessionHasErrors('terms_accepted');
+    }
+
+    public function test_registration_fails_with_invalid_phone(): void
+    {
+        $response = $this->post('/register', [
+            'first_name' => 'Badphone',
+            'email' => 'badphone@example.com',
+            'phone' => 'invalid-phone',
+            'country_code' => '+249',
+            'password' => 'password',
+            'password_confirmation' => 'password',
+            'terms_accepted' => true,
         ]);
 
         $response->assertSessionHasErrors('phone');
