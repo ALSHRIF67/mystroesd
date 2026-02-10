@@ -18,7 +18,21 @@ class ProductController extends Controller
     public function index()
     {
         $products = Product::with('category')
-            ->active()
+            ->when(auth()->check(), function ($query) {
+                $user = auth()->user();
+                if ($user->isAdmin()) {
+                    return $query; // admins see all products
+                }
+
+                // Sellers see their own products plus approved products
+                return $query->where(function ($q) use ($user) {
+                    $q->where('status', Product::STATUS_APPROVED)
+                      ->orWhere('user_id', $user->id);
+                });
+            }, function ($query) {
+                // Guests see only approved products
+                return $query->where('status', Product::STATUS_APPROVED);
+            })
             ->latest()
             ->get();
 

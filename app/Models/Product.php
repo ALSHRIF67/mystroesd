@@ -56,12 +56,14 @@ class Product extends Model
     public const STATUS_ARCHIVED = 'archived';
     public const STATUS_DRAFT = 'draft';
     public const STATUS_REJECTED = 'rejected';
+    public const STATUS_SUSPENDED = 'suspended';
 
     // حالة النص للعرض
     public const STATUS_TEXTS = [
         self::STATUS_PENDING => 'قيد المراجعة',
         self::STATUS_APPROVED => 'تمت الموافقة',
         self::STATUS_ARCHIVED => 'مؤرشف',
+        self::STATUS_SUSPENDED => 'موقف',
         self::STATUS_DRAFT => 'مسودة',
         self::STATUS_REJECTED => 'مرفوض',
     ];
@@ -99,6 +101,11 @@ class Product extends Model
         return $query->where('status', self::STATUS_REJECTED);
     }
 
+    public function scopeSuspended($query)
+    {
+        return $query->where('status', self::STATUS_SUSPENDED);
+    }
+
     // نطاق للمنتجات الخاصة بمستخدم معين
     public function scopeOwnedBy($query, $userId)
     {
@@ -123,10 +130,29 @@ class Product extends Model
         return $this->belongsTo(\App\Models\User::class, 'user_id');
     }
 
+    // Alias for controller convenience: `seller` relation
+    public function seller()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
     // العلاقة مع المستخدم الذي وافق على المنتج
     public function approvedBy()
     {
         return $this->belongsTo(\App\Models\User::class, 'approved_by');
+    }
+
+
+    // Alias expected by admin controllers
+    public function approver()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'approved_by');
+    }
+
+    // Alias for the user who rejected the product (if column exists)
+    public function rejecter()
+    {
+        return $this->belongsTo(\App\Models\User::class, 'rejected_by');
     }
 
     // نطاق البحث

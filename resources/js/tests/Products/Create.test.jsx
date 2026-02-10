@@ -1,6 +1,6 @@
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import Create from '../Create';
+import Create from '../Pages/Products/Create';
 
 // Mock Inertia router and route helper
 jest.mock('@inertiajs/react', () => ({

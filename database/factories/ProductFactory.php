@@ -15,7 +15,7 @@ class ProductFactory extends Factory
             'description' => $this->faker->paragraph(),
             'price' => $this->faker->numberBetween(10, 10000),
             'negotiable' => $this->faker->boolean(30),
-            'category_id' => null,
+            'category_id' => \App\Models\Category::factory(),
             'subcategory_id' => null,
             // assign created product to currently authenticated user when available
             'user_id' => auth()->id() ?? \App\Models\User::factory(),

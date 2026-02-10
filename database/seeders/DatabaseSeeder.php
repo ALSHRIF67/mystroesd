@@ -21,5 +21,8 @@ class DatabaseSeeder extends Seeder
             'name' => 'Test User',
             'email' => 'test@example.com',
         ]);
+
+        // seed an admin and demo seller + products
+        $this->call(\Database\Seeders\AdminUserSeeder::class);
     }
 }

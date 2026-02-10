@@ -26,6 +26,7 @@ class User extends Authenticatable
         'is_marketing_subscribed',
         'terms_accepted',
         'role',
+        'is_suspended',
     ];
 
     /**
@@ -48,12 +49,18 @@ class User extends Authenticatable
         'is_marketing_subscribed' => 'boolean',
         'terms_accepted' => 'boolean',
         'role' => 'string',
+        'is_suspended' => 'boolean',
     ];
 
     // Helper
     public function isAdmin()
     {
         return $this->role === 'admin';
+    }
+
+    public function isSuspended()
+    {
+        return (bool) $this->is_suspended;
     }
 
     // Relation: a user (seller) can have many products
