@@ -151,7 +151,7 @@ export default function AdminProductsIndex({ products = [], filters = {}, stats 
     }
 
     setLoading(true);
-    router.post(route(`admin.products.${action}`, id), {
+    router.post(route('admin.products.action', { id, action }), {
       rejection_reason: reason
     }, {
       preserveScroll: true,
@@ -174,7 +174,7 @@ export default function AdminProductsIndex({ products = [], filters = {}, stats 
     }
 
     setLoading(true);
-    router.post(route('admin.products.reject', selectedProduct), {
+    router.post(route('admin.products.action', { id: selectedProduct, action: 'reject' }), {
       rejection_reason: rejectionReason
     }, {
       preserveScroll: true,
@@ -358,7 +358,7 @@ export default function AdminProductsIndex({ products = [], filters = {}, stats 
     actions.push(
       <Link
         key="view"
-        href={route('admin.products.show', product.id)}
+        href={route('products.public.show', product.slug ? `${product.id}-${product.slug}` : product.id)}
         className="flex items-center justify-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors whitespace-nowrap w-full sm:w-auto"
         title="View Details"
       >

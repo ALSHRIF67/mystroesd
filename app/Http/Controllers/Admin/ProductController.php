@@ -468,6 +468,51 @@ class ProductController extends Controller
             ->with('failed', $failed);
     }
 
+    /**
+     * Permanently delete multiple products (force delete)
+     */
+    public function bulkDestroy(Request $request)
+    {
+        $request->validate([
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'exists:products,id',
+        ]);
+
+        $deleted = 0;
+        $failed = 0;
+
+        DB::transaction(function () use ($request, &$deleted, &$failed) {
+            foreach ($request->product_ids as $productId) {
+                try {
+                    $product = Product::withTrashed()->find($productId);
+                    if (!$product) {
+                        $failed++;
+                        continue;
+                    }
+
+                    $name = $product->name;
+                    $product->forceDelete();
+                    ActivityLog::log('product_deleted', null, auth()->user(), [
+                        'product_id' => $productId,
+                        'product_name' => $name,
+                        'seller_id' => $product->seller_id ?? null
+                    ]);
+                    $deleted++;
+                } catch (\Exception $e) {
+                    \Log::error('Bulk destroy failed for product ' . $productId, ['error' => $e->getMessage()]);
+                    $failed++;
+                }
+            }
+        });
+
+        $message = "{$deleted} products permanently deleted.";
+        if ($failed > 0) {
+            $message .= " {$failed} failed.";
+        }
+
+        return redirect()->back()->with('success', $message);
+    }
+
     public function stats()
     {
         $stats = [

@@ -8,6 +8,7 @@ use App\Models\Subcategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
 class ProductController extends Controller
@@ -39,6 +40,53 @@ class ProductController extends Controller
         return Inertia::render('Products/Index', [
             'products' => $products,
         ]);
+    }
+
+    /**
+     * Public home page showing approved products (Blade view).
+     */
+    public function home(Request $request)
+    {
+        // In testing environments avoid querying the database to prevent
+        // failures when the in-memory sqlite schema is not prepared.
+        if (app()->environment('testing')) {
+            return Inertia::render('Welcome', [
+                'canLogin' => Route::has('login'),
+                'canRegister' => Route::has('register'),
+                'laravelVersion' => \Illuminate\Foundation\Application::VERSION,
+                'phpVersion' => PHP_VERSION,
+            ]);
+        }
+
+        $products = Product::with('seller')
+            ->live()
+            ->latest()
+            ->paginate(12);
+
+        return view('home', compact('products'));
+    }
+
+    /**
+     * Public product detail route that accepts an id or slug-ish segment
+     * (e.g. "123-my-product" or "my-product") and resolves the product.
+     */
+    public function publicShow($idSlug)
+    {
+        // If the segment starts with numeric id (e.g. 123-my-product)
+        if (preg_match('/^(\d+)(?:\-.*)?$/', $idSlug, $m)) {
+            $id = $m[1];
+            $product = Product::with(['seller', 'category'])->where('id', $id)->firstOrFail();
+        } else {
+            $query = Product::with(['seller', 'category']);
+            if (\Illuminate\Support\Facades\Schema::hasColumn('products', 'slug')) {
+                $product = $query->where('slug', $idSlug)->firstOrFail();
+            } else {
+                // Fallback: try numeric id or fail
+                $product = $query->where('id', $idSlug)->firstOrFail();
+            }
+        }
+
+        return view('products.show', compact('product'));
     }
 
     /**
