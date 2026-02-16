@@ -126,3 +126,5 @@ export default function Show({ product }) {
         </GuestLayout>
     );
 }
+
+    // fall back to storage path for filenames, and finally a placeholder.
