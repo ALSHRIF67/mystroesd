@@ -1,83 +1,124 @@
-import { Head, Link, usePage, router } from '@inertiajs/react';
+import { Head } from '@inertiajs/react';
 import GuestLayout from '@/Layouts/GuestLayout';
+import { useState } from 'react';
 
 export default function Show({ product }) {
-    const { auth } = usePage().props;
-    const user = auth ? auth.user : null;
-    const isOwner = user && user.id === product.user_id;
-    const isSeller = user && user.role === 'seller';
+    const { title, description, price, image, location, phone } = product;
+    const [imageError, setImageError] = useState(false);
+
+    // دمج معلومات البائع
+    const seller = product.user || product.seller || { name: 'بائع مجهول', phone: null };
+    const contactPhone = phone || seller.phone || null;
+
+    // تنظيف الرقم لاستخدامه في واتساب
+    const cleanPhone = contactPhone ? String(contactPhone).replace(/\D/g, '') : null;
+    const whatsappLink = cleanPhone
+        ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent('مرحباً، أود الاستفسار عن المنتج: ' + title)}`
+        : null;
+    const callLink = contactPhone ? `tel:${contactPhone}` : null;
+
+    // Resolve image source: prefer `image_url` accessor added by model,
+    // fall back to storage path for filenames, and finally a placeholder.
+    const imageUrl = product.image_url || (image ? `/storage/products/${image}` : null) || '/images/placeholder-product.png';
 
     return (
         <GuestLayout>
-            <Head title={product.title} />
+            <Head title={title} />
 
-            <div className="bg-white rounded shadow p-6 max-w-4xl mx-auto">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    {/* Product Image */}
-                    <div className="md:col-span-1">
-                        {product.image_url ? (
-                            <img
-                                src={product.image_url}
-                                alt={product.title}
-                                className="w-full h-64 object-cover rounded"
-                            />
-                        ) : (
-                            <div className="w-full h-64 bg-gray-200 rounded flex items-center justify-center">
-                                <span className="text-gray-500">لا توجد صورة</span>
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Product Details */}
-                    <div className="md:col-span-2">
-                        <h1 className="text-2xl font-bold text-gray-900">{product.title}</h1>
-                        
-                        <p className="text-xl text-red-600 mt-2">
-                            {product.formatted_price}
-                        </p>
-                        
-                        <p className="text-sm text-gray-600 mt-1">
-                            بواسطة: {product.seller?.name || 'بائع مجهول'}
-                        </p>
-                        
-                        <div className="mt-4 text-gray-800">
-                            {product.description ? (
-                                <p className="whitespace-pre-line">{product.description}</p>
+            <div className="max-w-6xl mx-auto px-4 py-10 md:py-16">
+                <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2">
+                        {/* صورة المنتج */}
+                        <div className="relative h-72 md:h-[500px] bg-gray-100">
+                            {imageUrl && !imageError ? (
+                                <img
+                                    src={imageUrl}
+                                    alt={title}
+                                    className="w-full h-full object-cover"
+                                    onError={() => setImageError(true)}
+                                />
                             ) : (
-                                <p className="text-gray-500">لا يوجد وصف</p>
+                                <div className="flex items-center justify-center h-full">
+                                    <i className="fas fa-image text-6xl text-gray-400"></i>
+                                    <span className="sr-only">لا توجد صورة</span>
+                                </div>
                             )}
                         </div>
 
-                        {/* Edit/Delete for owner */}
-                        {isOwner && isSeller && (
-                            <div className="mt-4 flex gap-2">
-                                <Link
-                                    href={route('products.edit', product.id)}
-                                    className="px-4 py-2 bg-yellow-500 text-white rounded hover:bg-yellow-600 transition"
-                                >
-                                    تعديل
-                                </Link>
-                                <button
-                                    onClick={() => {
-                                        if (confirm('هل أنت متأكد من حذف هذا المنتج؟')) {
-                                            router.delete(route('products.destroy', product.id));
-                                        }
-                                    }}
-                                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition"
-                                >
-                                    حذف
-                                </button>
-                            </div>
-                        )}
+                        {/* محتوى المنتج */}
+                        <div className="p-6 md:p-10 space-y-8">
+                            {/* 1. عنوان المنتج */}
+                            <h1 className="text-3xl md:text-4xl font-bold text-gray-900">
+                                {title}
+                            </h1>
 
-                        {/* Back to home */}
-                        <div className="mt-6">
-                            <Link
-                                href="/"
-                                className="inline-block px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition"
-                            >
-                                ← العودة للمنتجات
-                            </Link>
+                            {/* 2. الوصف */}
+                            <div>
+                                <h3 className="text-xl font-bold text-gray-900 mb-2">
+                                    تفاصيل الإعلان
+                                </h3>
+                                <p className="whitespace-pre-line leading-relaxed text-gray-700">
+                                    {description || 'لا يوجد وصف متاح'}
+                                </p>
+                            </div>
+
+                            {/* 3. السعر والموقع */}
+                            <div className="flex items-center justify-between">
+                                <p className="text-2xl font-semibold text-red-600">
+                                    {price}
+                                </p>
+                                {location && (
+                                    <p className="flex items-center gap-1 text-gray-600">
+                                        <i className="fas fa-map-marker-alt"></i>
+                                        <span>{location}</span>
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* 4. معلومات البائع */}
+                            <div className="bg-gray-50 rounded-2xl p-5 border">
+                                <h3 className="text-lg font-bold text-gray-900 mb-3">
+                                    معلومات البائع
+                                </h3>
+                                <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 text-xl">
+                                        <i className="fas fa-user"></i>
+                                    </div>
+                                    <div>
+                                        <p className="font-semibold text-gray-900 text-lg">
+                                            {seller.name}
+                                        </p>
+                                        {seller.phone && (
+                                            <p className="text-sm text-gray-600 mt-1 flex items-center gap-1">
+                                                <i className="fas fa-phone-alt text-gray-400"></i>
+                                                {seller.phone}
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 5. أزرار الاتصال */}
+                            {contactPhone && (
+                                <div className="space-y-4 pt-4">
+                                    <a
+                                        href={whatsappLink}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="w-full flex flex-row-reverse items-center justify-center gap-3 py-4 bg-green-600 hover:bg-green-700 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition text-lg"
+                                    >
+                                        <i className="fab fa-whatsapp text-xl"></i>
+                                        <span>تواصل عبر واتساب</span>
+                                    </a>
+                                    <a
+                                        href={callLink}
+                                        className="w-full flex flex-row-reverse items-center justify-center gap-3 py-4 bg-yellow-500 hover:bg-yellow-600 text-white font-bold rounded-xl shadow-md hover:shadow-lg transition text-lg"
+                                    >
+                                        <i className="fas fa-phone-alt"></i>
+                                        <span>اتصل بالبائع</span>
+                                    </a>
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

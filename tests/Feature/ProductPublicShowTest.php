@@ -23,7 +23,7 @@ class ProductPublicShowTest extends TestCase
         $response->assertInertia(function (AssertableInertia $page) use ($product) {
             $page->component('Products/Show')
                  ->where('product.title', $product->title)
-                 ->where('product.user_id', $product->user_id);
+                 ->where('product.seller.id', $product->user_id);
         });
     }
 
@@ -38,7 +38,7 @@ class ProductPublicShowTest extends TestCase
         $response->assertInertia(function (AssertableInertia $page) use ($product, $owner) {
             $page->component('Products/Show')
                  ->where('product.title', $product->title)
-                 ->where('product.user_id', $product->user_id)
+                 ->where('product.seller.id', $product->user_id)
                  ->where('auth.user.id', $owner->id);
         });
     }
@@ -55,7 +55,7 @@ class ProductPublicShowTest extends TestCase
         $response->assertInertia(function (AssertableInertia $page) use ($product, $other) {
             $page->component('Products/Show')
                  ->where('product.title', $product->title)
-                 ->where('product.user_id', $product->user_id)
+                 ->where('product.seller.id', $product->user_id)
                  ->where('auth.user.id', $other->id);
         });
     }
