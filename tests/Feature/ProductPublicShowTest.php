@@ -6,6 +6,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 use App\Models\User;
 use App\Models\Product;
+use Inertia\Testing\AssertableInertia as AssertableInertia;
 
 class ProductPublicShowTest extends TestCase
 {
@@ -19,9 +20,11 @@ class ProductPublicShowTest extends TestCase
         $response = $this->get(route('products.show', $product->id));
 
         $response->assertStatus(200);
-        $response->assertSee('Public Product');
-        $response->assertDontSee('تعديل');
-        $response->assertDontSee('حذف');
+        $response->assertInertia(function (AssertableInertia $page) use ($product) {
+            $page->component('Products/Show')
+                 ->where('product.title', $product->title)
+                 ->where('product.user_id', $product->user_id);
+        });
     }
 
     public function test_owner_sees_edit_and_delete_buttons()
@@ -32,9 +35,12 @@ class ProductPublicShowTest extends TestCase
         $response = $this->actingAs($owner)->get(route('products.show', $product->id));
 
         $response->assertStatus(200);
-        $response->assertSee('Owner Product');
-        $response->assertSee('تعديل');
-        $response->assertSee('حذف');
+        $response->assertInertia(function (AssertableInertia $page) use ($product, $owner) {
+            $page->component('Products/Show')
+                 ->where('product.title', $product->title)
+                 ->where('product.user_id', $product->user_id)
+                 ->where('auth.user.id', $owner->id);
+        });
     }
 
     public function test_non_owner_authenticated_user_does_not_see_edit_delete()
@@ -46,8 +52,11 @@ class ProductPublicShowTest extends TestCase
         $response = $this->actingAs($other)->get(route('products.show', $product->id));
 
         $response->assertStatus(200);
-        $response->assertSee('Someone Else Product');
-        $response->assertDontSee('تعديل');
-        $response->assertDontSee('حذف');
+        $response->assertInertia(function (AssertableInertia $page) use ($product, $other) {
+            $page->component('Products/Show')
+                 ->where('product.title', $product->title)
+                 ->where('product.user_id', $product->user_id)
+                 ->where('auth.user.id', $other->id);
+        });
     }
 }

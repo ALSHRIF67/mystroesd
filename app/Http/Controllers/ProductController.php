@@ -86,7 +86,11 @@ class ProductController extends Controller
             }
         }
 
-        return view('products.show', compact('product'));
+        // Render the Inertia React page so both guests and authenticated
+        // users use the same `Products/Show` component.
+        return Inertia::render('Products/Show', [
+            'product' => $product->load(['seller', 'category']),
+        ]);
     }
 
     /**
