@@ -306,9 +306,7 @@
                     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
                         @foreach($products as $product)
                             <div class="group bg-gradient-to-br from-white to-gray-50 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-300 overflow-hidden border border-gray-100 hover:border-blue-200">
-                                <a href="{{ route('products.public.show', $product->slug ? $product->id.'-'.$product->slug : $product->id) }}" class="block">
-
-                                    {{-- صورة المنتج --}}
+                                <a href="{{ route('products.show', $product->slug ? $product->id.'-'+$product->slug : $product->id) }}" class="block">
                                     <div class="relative pb-[70%] bg-gray-100 overflow-hidden">
                                         <img src="{{ $product->image_url ?? 'https://via.placeholder.com/400x300?text=No+Image' }}"
                                              alt="{{ $product->name }}"

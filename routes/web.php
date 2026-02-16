@@ -108,7 +108,7 @@ Route::middleware('auth')->group(function () {
     Route::get('products/MyProducts', fn() => redirect()->route('products.mine'));
     Route::get('debug-mine', fn() => auth()->check() ? response('auth-ok') : response('no-auth',401));
 
-    Route::controller(ProductController::class)->group(function () {
+        Route::controller(ProductController::class)->group(function () {
         Route::get('products/mine','mine')->name('products.mine');
         Route::get('/my-products/pending','pending')->name('products.pending');
 
@@ -118,7 +118,10 @@ Route::middleware('auth')->group(function () {
             ->where('action','approve|reject')
             ->name('products.approve');
 
-        Route::resource('products', ProductController::class);
+        // Exclude the 'show' route from the auth-protected resource so the
+        // public product detail route (defined after the auth group) can
+        // serve product pages to guests without requiring authentication.
+        Route::resource('products', ProductController::class)->except(['show']);
     });
 });
 
@@ -195,4 +198,4 @@ require __DIR__.'/auth.php';
 | it doesn't accidentally match reserved segments like "create" or "edit".
 |
 */
-Route::get('/products/{idSlug}', [ProductController::class, 'publicShow'])->name('products.public.show');
+Route::get('/products/{idSlug}', [ProductController::class, 'publicShow'])->name('products.show');

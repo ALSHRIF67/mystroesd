@@ -20,6 +20,18 @@
                     <div class="mt-4 text-gray-800">{!! nl2br(e($product->description)) !!}</div>
                     <div class="mt-6">
                         <a href="{{ route('home') }}" class="inline-block px-3 py-2 bg-gray-200 rounded">عودة للمنتجات</a>
+
+                        @can('update', $product)
+                            <a href="{{ route('products.edit', $product->id) }}" class="inline-block px-3 py-2 bg-blue-600 text-white rounded mr-2">تعديل</a>
+                        @endcan
+
+                        @can('delete', $product)
+                            <form method="POST" action="{{ route('products.destroy', $product->id) }}" class="inline-block" onsubmit="return confirm('هل أنت متأكد من حذف المنتج؟');">
+                                @csrf
+                                @method('DELETE')
+                                <button type="submit" class="px-3 py-2 bg-red-600 text-white rounded">حذف</button>
+                            </form>
+                        @endcan
                     </div>
                 </div>
             </div>

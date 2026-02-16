@@ -358,7 +358,7 @@ export default function AdminProductsIndex({ products = [], filters = {}, stats 
     actions.push(
       <Link
         key="view"
-        href={route('products.public.show', product.slug ? `${product.id}-${product.slug}` : product.id)}
+        href={route('products.show', product.slug ? `${product.id}-${product.slug}` : product.id)}
         className="flex items-center justify-center px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-sm transition-colors whitespace-nowrap w-full sm:w-auto"
         title="View Details"
       >
