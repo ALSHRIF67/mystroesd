@@ -26,7 +26,16 @@ class ProductPolicy
      */
     public function create(User $user)
     {
-        return $user != null; // further restrict by role if desired
+        // Only authenticated sellers who have a store can create products
+        if (!$user) return false;
+        if (method_exists($user, 'isAdmin') && $user->isAdmin()) return true;
+        if (isset($user->role) && $user->role !== 'seller') return false;
+        // must have a store record (store owner) - check via relation existence to avoid stale model state
+        try {
+            return $user->store()->exists();
+        } catch (\Throwable $e) {
+            return false;
+        }
     }
 
     /**

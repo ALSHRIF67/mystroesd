@@ -136,26 +136,41 @@ class ProductController extends Controller
     {
         $product = Product::withTrashed()->findOrFail($id);
         
-        $request->validate([
-            'name' => 'required|string|max:255',
-            'description' => 'required|string',
-            'price' => 'required|numeric|min:0',
-            'stock' => 'required|integer|min:0',
-            'category_id' => 'required|exists:categories,id',
-            'status' => ['required', Rule::in([
-                Product::STATUS_PENDING,
-                Product::STATUS_APPROVED,
-                Product::STATUS_REJECTED,
-                Product::STATUS_SUSPENDED,
-                Product::STATUS_ARCHIVED
-            ])],
-            'sku' => 'nullable|string|max:100',
-            'weight' => 'nullable|numeric|min:0',
-            'dimensions' => 'nullable|string|max:100',
-            'brand' => 'nullable|string|max:100',
-            'condition' => 'nullable|in:new,used,refurbished',
-            'warranty' => 'nullable|string|max:255',
-        ]);
+        // Allow status-only changes via admin update (convenience for tests/UI)
+        if ($request->has('status') && count($request->all()) === 1) {
+            $request->validate([
+                'status' => ['required', Rule::in([
+                    Product::STATUS_PENDING,
+                    Product::STATUS_APPROVED,
+                    Product::STATUS_REJECTED,
+                    Product::STATUS_SUSPENDED,
+                    Product::STATUS_ARCHIVED,
+                    Product::STATUS_OFFLINE,
+                ])],
+            ]);
+        } else {
+            $request->validate([
+                'name' => 'required|string|max:255',
+                'description' => 'required|string',
+                'price' => 'required|numeric|min:0',
+                'stock' => 'required|integer|min:0',
+                'category_id' => 'required|exists:categories,id',
+                'status' => ['required', Rule::in([
+                    Product::STATUS_PENDING,
+                    Product::STATUS_APPROVED,
+                    Product::STATUS_REJECTED,
+                    Product::STATUS_SUSPENDED,
+                    Product::STATUS_ARCHIVED,
+                    Product::STATUS_OFFLINE,
+                ])],
+                'sku' => 'nullable|string|max:100',
+                'weight' => 'nullable|numeric|min:0',
+                'dimensions' => 'nullable|string|max:100',
+                'brand' => 'nullable|string|max:100',
+                'condition' => 'nullable|in:new,used,refurbished',
+                'warranty' => 'nullable|string|max:255',
+            ]);
+        }
 
         DB::transaction(function () use ($product, $request) {
             $oldStatus = $product->status;

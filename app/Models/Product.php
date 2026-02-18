@@ -54,6 +54,7 @@ class Product extends Model
     public const STATUS_PENDING = 'pending';
     public const STATUS_APPROVED = 'approved';
     public const STATUS_ARCHIVED = 'archived';
+    public const STATUS_OFFLINE = 'offline';
     public const STATUS_DRAFT = 'draft';
     public const STATUS_REJECTED = 'rejected';
     public const STATUS_SUSPENDED = 'suspended';
@@ -62,6 +63,7 @@ class Product extends Model
     public const STATUS_TEXTS = [
         self::STATUS_PENDING => 'قيد المراجعة',
         self::STATUS_APPROVED => 'تمت الموافقة',
+        self::STATUS_OFFLINE => 'غير منشور',
         self::STATUS_ARCHIVED => 'مؤرشف',
         self::STATUS_SUSPENDED => 'موقف',
         self::STATUS_DRAFT => 'مسودة',
@@ -134,6 +136,12 @@ class Product extends Model
     public function seller()
     {
         return $this->belongsTo(\App\Models\User::class, 'user_id');
+    }
+
+    // Relation to Store via the seller user_id (product.user_id == store.user_id)
+    public function store()
+    {
+        return $this->belongsTo(\App\Models\Store::class, 'user_id', 'user_id');
     }
 
     // العلاقة مع المستخدم الذي وافق على المنتج

@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useForm, Head, router } from '@inertiajs/react';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout';
 
-export default function Create({ categories = [], auth }) {
-    console.log('Create component loaded with categories:', categories);
+export default function Create({ categories = [], auth, orderSystemEnabled = false, store = null }) {
+    console.log('Create component loaded with categories:', categories, 'orderSystemEnabled:', orderSystemEnabled);
 
     // Access guard: only sellers can create products
     useEffect(() => {
@@ -926,6 +926,26 @@ export default function Create({ categories = [], auth }) {
             <Head title="إنشاء إعلان جديد" />
             
             <div dir="rtl" className="bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen py-8 px-4">
+                {/* Order System status banner for merchants */}
+                {auth?.user && (
+                    <div className="max-w-4xl mx-auto mb-6">
+                        {orderSystemEnabled ? (
+                            <div className="bg-green-50 border border-green-100 text-green-800 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    نظام الطلبات مفعل لمتجرك — سيتم عرض المنتجات تلقائياً في لوحة الطلبات.
+                                </div>
+                                <a href={route('merchant.orderSystem.dashboard')} className="text-green-700 underline font-medium">اذهب إلى لوحة نظام الطلبات</a>
+                            </div>
+                        ) : (
+                            <div className="bg-yellow-50 border border-yellow-100 text-yellow-800 rounded-2xl p-4 flex items-center justify-between">
+                                <div>
+                                    نظام الطلبات غير مفعل — لتفعيل السلة والدفع وإدارة الطلبات، فعِّل النظام أولاً.
+                                </div>
+                                <a href={route('merchant.orderSystem.plans')} className="text-yellow-700 underline font-medium">عرض الخطط</a>
+                            </div>
+                        )}
+                    </div>
+                )}
                 <div className="max-w-4xl mx-auto">
                     {/* رسالة الخطأ */}
                     {errorMessage && (

@@ -24,5 +24,6 @@ class DatabaseSeeder extends Seeder
 
         // seed an admin and demo seller + products
         $this->call(\Database\Seeders\AdminUserSeeder::class);
+        $this->call(\Database\Seeders\PlansTableSeeder::class);
     }
 }
