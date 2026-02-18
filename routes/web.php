@@ -73,9 +73,12 @@ Route::middleware('api')->group(function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware(['auth','verified'])->get('/dashboard', fn() =>
-    Inertia::render('Dashboard')
-)->name('dashboard');
+Route::middleware(['auth','verified'])->get('/dashboard', function () {
+    $user = auth()->user();
+    return Inertia::render('Dashboard', [
+        'store' => $user ? $user->store : null,
+    ]);
+})->name('dashboard');
 
 /*
 |--------------------------------------------------------------------------
@@ -114,8 +117,14 @@ Route::middleware('auth')->group(function () {
 
         Route::post('products/{id}/restore','restore')->name('products.restore');
         Route::delete('products/{id}/force-delete','forceDelete')->name('products.forceDelete');
+        // generic products action route
         Route::post('products/{id}/{action}','approve')
             ->where('action','approve|reject')
+            ->name('products.action');
+
+        // convenience single-action approve route for compatibility with older code/tests
+        Route::post('products/{id}/approve','approve')
+            ->defaults('action','approve')
             ->name('products.approve');
 
         // Exclude the 'show' route from the auth-protected resource so the
@@ -185,9 +194,54 @@ Route::prefix('admin')
             Route::post('/{id}/restore','restore')->name('restore');
             Route::post('/toggle-active/{id}','toggleActive')->name('toggle-active');
         });
+
+        // Legacy named routes (backwards-compatibility for tests / old links)
+        // keep generic action route but named as action
+        Route::post('/products/{id}/{action}', [AdminProductController::class, 'approve'])
+            ->where('action','approve|reject|suspend|archive|restore')
+            ->name('admin.products.action');
+
+        // single-parameter approve route used by older code/tests
+        Route::post('/products/{id}/approve', [AdminProductController::class, 'approve'])
+            ->defaults('action','approve')
+            ->name('admin.products.approve');
+
+        Route::post('/sellers/{id}/{action}', [AdminSellerController::class, 'toggleSuspend'])
+            ->where('action','toggle-suspend|activate|suspend')
+            ->name('admin.sellers.action');
+
+        // single-parameter toggle route
+        Route::post('/sellers/{id}/toggleSuspend', [AdminSellerController::class, 'toggleSuspend'])
+            ->defaults('action','toggle-suspend')
+            ->name('admin.sellers.toggleSuspend');
     });
 
 require __DIR__.'/auth.php';
+require __DIR__.'/orders.php';
+
+/*
+|--------------------------------------------------------------------------
+| Merchant Order System
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', \App\Http\Middleware\EnsureStoreOwner::class])->prefix('merchant')->group(function () {
+    Route::get('order-system', [\App\Http\Controllers\Merchant\OrderSystemController::class, 'dashboard'])
+        ->name('merchant.orderSystem.dashboard');
+
+    Route::post('order-system/activate', [\App\Http\Controllers\Merchant\OrderSystemController::class, 'activate'])
+        ->name('merchant.orderSystem.activate');
+
+    Route::get('plans', [\App\Http\Controllers\Merchant\OrderSystemController::class, 'plans'])
+        ->name('merchant.orderSystem.plans');
+
+    Route::get('orders', [\App\Http\Controllers\Merchant\OrderController::class, 'index'])->name('merchant.orders.index');
+    Route::get('orders/{id}', [\App\Http\Controllers\Merchant\OrderController::class, 'show'])->name('merchant.orders.show');
+    Route::post('orders/{id}/status', [\App\Http\Controllers\Merchant\OrderController::class, 'updateStatus'])->name('merchant.orders.updateStatus');
+
+    Route::resource('products', \App\Http\Controllers\Merchant\ProductController::class, [
+        'as' => 'merchant'
+    ]);
+});
 
 /*
 |--------------------------------------------------------------------------
@@ -199,3 +253,9 @@ require __DIR__.'/auth.php';
 |
 */
 Route::get('/products/{idSlug}', [ProductController::class, 'publicShow'])->name('products.show');
+
+// Buyer orders
+Route::middleware('auth')->group(function () {
+    Route::get('/orders', [\App\Http\Controllers\User\OrderController::class, 'index'])->name('orders.index');
+    Route::get('/orders/{id}', [\App\Http\Controllers\User\OrderController::class, 'show'])->name('orders.show');
+});

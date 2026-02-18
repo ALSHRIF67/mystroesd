@@ -68,4 +68,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(\App\Models\Product::class, 'user_id');
     }
+
+    // Relation: optional store owned by user
+    public function store()
+    {
+        return $this->hasOne(\App\Models\Store::class);
+    }
 }
