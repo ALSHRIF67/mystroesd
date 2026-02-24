@@ -1,4 +1,4 @@
-{{-- resources/views/cart/index.blade.php --}}
+{{-- resources/views/cart/show.blade.php --}}
 @extends('layouts.app')
 
 @section('content')
@@ -6,10 +6,7 @@
     <h1 class="text-3xl font-bold mb-6">سلة التسوق</h1>
 
     @if($cartItems->isEmpty())
-        <p class="text-gray-600">سلتك فارغة.</p>
-        <a href="{{ route('products.index') }}" class="mt-4 inline-block px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-            تصفح المنتجات
-        </a>
+        <p class="text-gray-600">السلة فارغة.</p>
     @else
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             @foreach($cartItems as $item)
@@ -20,7 +17,7 @@
                     <p class="text-gray-700 mb-2">السعر: {{ $item->price }} جنيه</p>
                     <p class="text-gray-500 mb-4">الكمية: {{ $item->quantity }}</p>
 
-                    {{-- تحديث الكمية --}}
+                    {{-- زر لتحديث الكمية --}}
                     <form action="{{ route('cart.update', $item->id) }}" method="POST" class="flex mb-2">
                         @csrf
                         @method('PATCH')
@@ -30,7 +27,7 @@
                         </button>
                     </form>
 
-                    {{-- حذف المنتج --}}
+                    {{-- زر لحذف المنتج --}}
                     <form action="{{ route('cart.remove', $item->id) }}" method="POST">
                         @csrf
                         @method('DELETE')
@@ -48,13 +45,6 @@
             <h2 class="text-2xl font-bold">
                 المجموع الكلي: {{ $cartItems->sum(fn($item) => $item->price * $item->quantity) }} جنيه
             </h2>
-        </div>
-
-        {{-- زر الدفع --}}
-        <div class="mt-4 text-right">
-            <a href="{{ route('checkout.index') }}" class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                إتمام عملية الدفع
-            </a>
         </div>
     @endif
 </div>

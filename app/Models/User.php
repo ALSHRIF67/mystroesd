@@ -2,21 +2,20 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Mass Assignable
+    |--------------------------------------------------------------------------
+    */
+
     protected $fillable = [
         'name',
         'email',
@@ -29,21 +28,23 @@ class User extends Authenticatable
         'is_suspended',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Hidden
+    |--------------------------------------------------------------------------
+    */
+
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array<string,string>
-     */
+    /*
+    |--------------------------------------------------------------------------
+    | Casts
+    |--------------------------------------------------------------------------
+    */
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'is_marketing_subscribed' => 'boolean',
@@ -52,26 +53,71 @@ class User extends Authenticatable
         'is_suspended' => 'boolean',
     ];
 
-    // Helper
-    public function isAdmin()
+    /*
+    |--------------------------------------------------------------------------
+    | Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    public function isAdmin(): bool
     {
         return $this->role === 'admin';
     }
 
-    public function isSuspended()
+    public function isSuspended(): bool
     {
         return (bool) $this->is_suspended;
     }
 
-    // Relation: a user (seller) can have many products
+    /*
+    |--------------------------------------------------------------------------
+    | Relationships
+    |--------------------------------------------------------------------------
+    */
+
+    // Seller products
     public function products()
     {
-        return $this->hasMany(\App\Models\Product::class, 'user_id');
+        return $this->hasMany(\App\Models\Product::class);
     }
 
-    // Relation: optional store owned by user
+    // Store (if seller)
     public function store()
     {
         return $this->hasOne(\App\Models\Store::class);
+    }
+
+    // 🧺 User has ONE active cart
+    public function cart()
+    {
+        return $this->hasOne(\App\Models\Cart::class);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | Professional Helpers
+    |--------------------------------------------------------------------------
+    */
+
+    // Total quantity in cart
+    public function cartCount(): int
+    {
+        if (!$this->cart) {
+            return 0;
+        }
+
+        return $this->cart->items()->sum('quantity');
+    }
+
+    // Total price in cart
+    public function cartTotal(): float
+    {
+        if (!$this->cart) {
+            return 0;
+        }
+
+        return $this->cart->items->sum(function ($item) {
+            return $item->quantity * $item->price_snapshot;
+        });
     }
 }
