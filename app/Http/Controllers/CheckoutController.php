@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Store;
 use App\Services\Orders\OrderService;
+use App\Models\Cart;
 
 class CheckoutController extends Controller
 {
@@ -17,15 +18,22 @@ class CheckoutController extends Controller
 
     public function index(Request $request)
     {
-        $cart = session()->get('cart', []);
-        if (empty($cart) || empty($cart['items'])) {
+        // If user is authenticated, show DB-backed cart
+        if ($request->user()) {
+            $items = Cart::with('product')->where('user_id', $request->user()->id)->get();
+            return view('checkout', ['cart' => $items, 'guest' => false]);
+        }
+
+        // Guest: check ephemeral guest_cart in session
+        $guest = session()->get('guest_cart', []);
+        if (empty($guest)) {
             return redirect()->back()->with('error', 'السلة فارغة');
         }
 
-        $items = $cart['items'];
-        $store = \App\Models\Store::find($cart['store_id']);
+        // Clear ephemeral cart so refresh clears it
+        session()->forget('guest_cart');
 
-        return view('checkout.index', compact('cart', 'items', 'store'));
+        return view('checkout', ['cart' => $guest, 'guest' => true]);
     }
 
     public function place(Request $request)

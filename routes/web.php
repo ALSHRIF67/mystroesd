@@ -5,7 +5,8 @@ use Inertia\Inertia;
 use App\Http\Controllers\{
     ProductController,
     ProfileController,
-    SellerController
+    SellerController,
+    CartController
 };
 use App\Http\Controllers\Api\{
     CategoryController as ApiCategoryController,
@@ -26,6 +27,13 @@ use App\Http\Controllers\Admin\{
 Route::get('/', [ProductController::class, 'home'])->name('home');
 Route::get('/seller/{user}/{slug?}', [SellerController::class, 'show'])->name('seller.show');
 
+// Public cart add (supports guests via session) and checkout
+Route::post('cart/{product}', [\App\Http\Controllers\CartController::class, 'addOrUpdate'])
+    ->whereNumber('product')
+    ->name('cart.addOrUpdate');
+
+Route::get('checkout', [\App\Http\Controllers\CartController::class, 'checkout'])->name('checkout.index');
+Route::post('/checkout', [App\Http\Controllers\CartController::class, 'process'])->name('checkout.process');
 /*
 |--------------------------------------------------------------------------
 | API (Subcategories fallback + normal)
@@ -258,4 +266,25 @@ Route::get('/products/{idSlug}', [ProductController::class, 'publicShow'])->name
 Route::middleware('auth')->group(function () {
     Route::get('/orders', [\App\Http\Controllers\User\OrderController::class, 'index'])->name('orders.index');
     Route::get('/orders/{id}', [\App\Http\Controllers\User\OrderController::class, 'show'])->name('orders.show');
+});
+
+// Cart routes (authenticated API-ish endpoints — JSON responses)
+Route::middleware('auth')->group(function () {
+    Route::prefix('cart')->controller(\App\Http\Controllers\CartController::class)->group(function () {
+    Route::get('count', 'count')->name('cart.count');
+        Route::get('/', 'show')->name('cart.show');
+        Route::post('add', 'addToCart')->name('cart.add');
+        Route::post('merge', 'merge')->name('cart.merge');
+        Route::post('update/{product}', 'update')->name('cart.update');
+        Route::delete('remove/{product}', 'remove')->name('cart.remove');
+        // Support DELETE /cart/{product} for clients that send a straight DELETE request
+        Route::delete('{product}', 'remove')
+            ->whereNumber('product')
+            ->name('cart.remove.direct');
+        // Prevent accidental GET requests to /cart/{product} (avoid MethodNotAllowed exception)
+        Route::get('{product}', function () {
+            return redirect()->route('home');
+        })->whereNumber('product');
+    });
+
 });
