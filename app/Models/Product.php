@@ -250,4 +250,9 @@ class Product extends Model
             }
         });
     }
+
+    public function cartUsers()
+{
+    return $this->belongsToMany(User::class, 'carts')->withPivot('quantity')->withTimestamps();
+}
 }

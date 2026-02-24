@@ -7,6 +7,7 @@ use App\Http\Controllers\{
     ProfileController,
     SellerController
 };
+use App\Http\Controllers\CartController;
 use App\Http\Controllers\Api\{
     CategoryController as ApiCategoryController,
     SubcategoryController as ApiSubcategoryController
@@ -132,6 +133,30 @@ Route::middleware('auth')->group(function () {
         // serve product pages to guests without requiring authentication.
         Route::resource('products', ProductController::class)->except(['show']);
     });
+});
+
+/*
+|-------------------------------------------------------------------------- 
+| Cart Routes
+|-------------------------------------------------------------------------- 
+*/
+
+Route::middleware('auth')->group(function () {
+
+    // عرض السلة
+    Route::get('cart', [CartController::class, 'show'])->name('cart.index');
+
+    // إضافة منتج للسلة
+    Route::post('cart/{product}', [CartController::class, 'addToCart'])
+        ->name('cart.addToCart'); // ← اسم فريد
+
+    // تحديث كمية منتج في السلة
+    Route::patch('cart/{product}', [CartController::class, 'update'])
+        ->name('cart.update');
+
+    // حذف منتج من السلة
+    Route::delete('cart/{product}', [CartController::class, 'remove'])
+        ->name('cart.remove');
 });
 
 /*
