@@ -81,14 +81,14 @@ export default function AuthenticatedLayout({ header, children }) {
                                     </NavLink>
                                 )}
 
-                                {hasRoute('products.create') && (
+                                {hasRoute('orders.index') && (
                                     <NavLink
-                                        href={route('products.create')}
-                                        active={route().current('products.create')}
+                                        href={route('orders.index')}
+                                        active={route().current('orders.index')}
                                         className="px-4 py-2 text-base font-semibold rounded-xl transition-all duration-200 hover:bg-blue-50 dark:hover:bg-blue-900/30"
                                     >
                                         <i className="fas fa-plus-circle ml-2 text-blue-600"></i>
-                                        إضافة منتج
+                                طلباتي
                                     </NavLink>
                                 )}
                             </div>
@@ -103,7 +103,7 @@ export default function AuthenticatedLayout({ header, children }) {
                                     className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-blue-600 via-blue-700 to-blue-800 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:shadow-xl transition-all duration-300 transform hover:scale-105 md:flex"
                                 >
                                     <i className="fas fa-plus-circle text-lg"></i>
-                                    <span>إضافة قائمة</span>
+                                    <span> إضافة منتج </span>
                                 </Link>
                             )}
 

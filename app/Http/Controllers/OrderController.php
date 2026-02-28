@@ -2,35 +2,46 @@
 
 namespace App\Http\Controllers;
 
-use App\Services\Orders\OrderService;
-use App\Models\Store;
+use App\Models\Order;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class OrderController extends Controller
 {
-    protected OrderService $service;
+    protected $service;
 
-    public function __construct(OrderService $service)
+    public function __construct(\App\Services\Orders\OrderService $service)
     {
         $this->service = $service;
     }
 
-    // Place an order for a specific store
-    public function place(Request $request, Store $store)
+   public function myOrders()
+{
+    $orders = Order::with('items.product')
+        ->where('user_id', Auth::id())
+        ->paginate(10);
+
+    return view('orders.index', compact('orders'));
+}
+
+    // إنشاء الطلب
+    public function place(Request $request, \App\Models\Store $store)
     {
         $payload = $request->validate([
             'buyer_id' => 'nullable|integer',
-            'product_id' => 'nullable|integer',
-            'product_name' => 'nullable|string',
-            'quantity' => 'nullable|integer|min:1',
             'notes' => 'nullable|string|max:1000',
-            // For system orders
-            'items' => 'nullable|array',
-            'items.*.product_id' => 'required_with:items|integer',
-            'items.*.quantity' => 'required_with:items|integer|min:1',
-            'items.*.price' => 'required_with:items|numeric|min:0',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|integer',
+            'items.*.quantity' => 'required|integer|min:1',
+            'items.*.price' => 'required|numeric|min:0',
         ]);
 
-        return $this->service->forStore($store)->place($payload);
+        $order = $this->service->forStore($store)->place($payload);
+
+        return response()->json([
+            'success' => true,
+            'order_id' => $order->id,
+            'message' => 'تم إنشاء الطلب بنجاح',
+        ]);
     }
 }

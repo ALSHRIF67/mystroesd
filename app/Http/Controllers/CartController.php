@@ -301,93 +301,64 @@ class CartController extends Controller
      * Backwards-compatible single-endpoint to add/update via POST /cart/{product}
      * Accepts optional `quantity` in body (default 1). Useful for simple client code.
      */
-    public function addOrUpdate(Request $request, Product $product)
-    {
-        $validated = $request->validate([
-            'quantity' => 'nullable|integer|min:1',
-        ]);
+  public function addOrUpdate(Request $request, Product $product)
+{
+    $quantity = $request->input('quantity', 1);
+    $productId = $product->id;
 
-        $quantity = $validated['quantity'] ?? 1;
-        $productId = $product->id;
+    if ($request->user()) {
+        $userId = $request->user()->id;
 
-        // If user is authenticated, persist to DB and redirect to checkout
-        if ($request->user()) {
-            $userId = $request->user()->id;
+        try {
+            DB::transaction(function () use ($userId, $productId, $quantity) {
+                $existing = Cart::where('user_id', $userId)
+                    ->where('product_id', $productId)
+                    ->lockForUpdate()
+                    ->first();
 
-            try {
-                DB::transaction(function () use ($userId, $productId, $quantity) {
-                    $productRow = null;
-                    if (Schema::hasColumn('products', 'stock')) {
-                        $productRow = Product::where('id', $productId)->lockForUpdate()->first();
-                    }
+                if ($existing) {
+                    $existing->increment('quantity', $quantity);
+                    return;
+                }
 
-                    $existing = Cart::where('user_id', $userId)
-                        ->where('product_id', $productId)
-                        ->lockForUpdate()
-                        ->first();
-
-                    if ($productRow && isset($productRow->stock)) {
-                        $currentInCart = $existing ? (int)$existing->quantity : 0;
-                        $final = $currentInCart + $quantity;
-                        if ($final > (int)$productRow->stock) {
-                            throw new \RuntimeException('Insufficient stock for product');
-                        }
-                    }
-
-                    if ($existing) {
-                        $existing->increment('quantity', $quantity);
-                        return;
-                    }
-
-                    try {
-                        Cart::create([
-                            'user_id' => $userId,
-                            'product_id' => $productId,
-                            'quantity' => $quantity,
-                        ]);
-                    } catch (QueryException $e) {
-                        $row = Cart::where('user_id', $userId)
-                            ->where('product_id', $productId)
-                            ->lockForUpdate()
-                            ->first();
-                        if ($row) {
-                            $row->increment('quantity', $quantity);
-                        } else {
-                            throw $e;
-                        }
-                    }
-                }, 5);
-            } catch (\RuntimeException $e) {
-                return redirect()->route('checkout.index')->with('error', $e->getMessage());
-            } catch (\Throwable $e) {
-                return redirect()->route('checkout.index')->with('error', 'Could not add to cart');
-            }
-
-            return redirect()->route('checkout.index');
+                Cart::create([
+                    'user_id' => $userId,
+                    'product_id' => $productId,
+                    'quantity' => $quantity,
+                ]);
+            });
+        } catch (\Throwable $e) {
+            return redirect()->route('checkout.index')->with('error', 'Could not add to cart');
         }
-
-        // Guest user: store in session only (temporary). We'll store simple array [{product_id, quantity, name, price, image_url}]
-        $guest = session()->get('guest_cart', []);
-        $foundKey = null;
-        foreach ($guest as $k => $it) {
-            if ((int)$it['product_id'] === (int)$productId) { $foundKey = $k; break; }
-        }
-        if ($foundKey !== null) {
-            $guest[$foundKey]['quantity'] = (int)$guest[$foundKey]['quantity'] + $quantity;
-        } else {
-            $guest[] = [
-                'product_id' => $productId,
-                'quantity' => (int)$quantity,
-                'name' => $product->name ?? null,
-                'price' => $product->price ?? 0,
-                'image_url' => $product->image_url ?? null,
-            ];
-        }
-        session()->put('guest_cart', $guest);
 
         return redirect()->route('checkout.index');
     }
 
+    // Guest cart in session
+    $guest = session()->get('guest_cart', []);
+    $foundKey = null;
+    foreach ($guest as $k => $it) {
+        if ((int)$it['product_id'] === $productId) { $foundKey = $k; break; }
+    }
+
+    $imageUrl = $product->image_url ? asset('storage/'.$product->image_url) : asset('images/default.png');
+
+    if ($foundKey !== null) {
+        $guest[$foundKey]['quantity'] += $quantity;
+    } else {
+        $guest[] = [
+            'product_id' => $productId,
+            'quantity' => $quantity,
+            'name' => $product->name ?? '',
+            'price' => $product->price ?? 0,
+            'image_url' => $imageUrl,
+        ];
+    }
+
+    session()->put('guest_cart', $guest);
+
+    return redirect()->route('checkout.index');
+}
     /**
      * Process checkout: convert authenticated user's cart into an Order + OrderItems
      * and clear the cart. Uses DB transaction to ensure consistency.

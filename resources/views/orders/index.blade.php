@@ -1,8 +1,8 @@
-@extends('layouts.app')
+
 
 @section('title','My Orders')
 
-@section('content')
+    <x-temp />
     <div class="max-w-5xl mx-auto p-6">
         <h1 class="text-2xl font-bold mb-4">طلباتي</h1>
 
@@ -33,4 +33,4 @@
             <div class="mt-4">{{ $orders->links() }}</div>
         </div>
     </div>
-@endsection
+   

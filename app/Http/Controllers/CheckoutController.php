@@ -4,8 +4,8 @@ namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
 use App\Models\Store;
-use App\Services\Orders\OrderService;
 use App\Models\Cart;
+use App\Services\Orders\OrderService;
 
 class CheckoutController extends Controller
 {
@@ -16,52 +16,69 @@ class CheckoutController extends Controller
         $this->orderService = $orderService;
     }
 
+    /**
+     * عرض صفحة Checkout
+     */
     public function index(Request $request)
     {
-        // If user is authenticated, show DB-backed cart
         if ($request->user()) {
-            $items = Cart::with('product')->where('user_id', $request->user()->id)->get();
+            // المستخدم مسجل → جلب السلة من DB
+            $items = Cart::with('product')
+                        ->where('user_id', $request->user()->id)
+                        ->get();
             return view('checkout', ['cart' => $items, 'guest' => false]);
         }
 
-        // Guest: check ephemeral guest_cart in session
-        $guest = session()->get('guest_cart', []);
-        if (empty($guest)) {
+        // ضيف → جلب السلة من Session
+        $guestCart = session()->get('guest_cart', []);
+        if (empty($guestCart)) {
             return redirect()->back()->with('error', 'السلة فارغة');
         }
 
-        // Clear ephemeral cart so refresh clears it
-        session()->forget('guest_cart');
-
-        return view('checkout', ['cart' => $guest, 'guest' => true]);
+        return view('checkout', ['cart' => $guestCart, 'guest' => true]);
     }
 
+    /**
+     * Place an order
+     */
     public function place(Request $request)
     {
-        $cart = session()->get('cart', []);
-        if (empty($cart) || empty($cart['items'])) {
+        // تحديد مصدر السلة
+        $cartItems = $request->user()
+            ? Cart::with('product')->where('user_id', $request->user()->id)->get()->toArray()
+            : session()->get('guest_cart', []);
+
+        if (empty($cartItems)) {
             return redirect()->back()->with('error', 'السلة فارغة');
         }
 
-        $storeId = $cart['store_id'] ?? null;
+        // تحديد الـ Store (نأخذ store_id من أول منتج)
+        $storeId = $cartItems[0]['product']['store_id'] ?? ($cartItems[0]['store_id'] ?? null);
         $store = Store::findOrFail($storeId);
 
+        // تجهيز بيانات الطلب
         $payload = [
-            'buyer_id' => auth()->id(),
-            'items' => array_map(function ($it) {
+            'buyer_id' => $request->user()->id ?? null,
+            'items' => array_map(function($item){
                 return [
-                    'product_id' => $it['product_id'],
-                    'quantity' => $it['quantity'],
-                    'price' => $it['price'],
+                    'product_id' => $item['product_id'] ?? $item['id'] ?? null,
+                    'quantity'   => $item['quantity'] ?? 1,
+                    'price'      => $item['product']['price'] ?? $item['price'] ?? 0,
                 ];
-            }, $cart['items']),
+            }, $cartItems),
         ];
 
-        $response = $this->orderService->forStore($store)->place($payload);
+        // تنفيذ الطلب
+        $order = $this->orderService->forStore($store)->place($payload);
 
-        // Clear cart on success (we assume strategy handles exceptions)
-        session()->forget('cart');
+        // مسح السلة بعد نجاح الطلب
+        if ($request->user()) {
+            Cart::where('user_id', $request->user()->id)->delete();
+        } else {
+            session()->forget('guest_cart');
+        }
 
-        return $response;
+        return redirect()->route('orders.show', $order->id)
+                         ->with('success', 'تم إنشاء الطلب بنجاح!');
     }
 }

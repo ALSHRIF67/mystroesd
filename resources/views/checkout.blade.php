@@ -29,63 +29,48 @@
 <div class="container">
     <h1 class="mb-4 text-2xl font-bold">إتمام الشراء</h1>
 
-    {{-- Session Error --}}
     @if(session('error'))
         <div class="alert alert-error">{{ session('error') }}</div>
     @endif
-
-    {{-- Validation errors --}}
-    @if($errors->any())
-        <div class="alert alert-error">
-            <ul>
-                @foreach($errors->all() as $error) <li>{{ $error }}</li> @endforeach
-            </ul>
-        </div>
-    @endif
-
-    {{-- Guest notice --}}
-    @if($guest)
-        <div class="alert alert-info">
-            <i class="fas fa-info-circle"></i> أنت تستخدم سلة ضيوف. سيتم مسح السلة عند تحديث الصفحة.
-        </div>
+    @if(session('success'))
+        <div class="alert alert-info">{{ session('success') }}</div>
     @endif
 
     <div class="checkout-grid">
         <div>
             <h2 class="mb-4 text-xl font-semibold">سلة المشتريات</h2>
-            <div id="checkout-root">
-                <table>
-                    <thead>
-                        <tr>
-                            <th>المنتج</th>
-                            <th>الكمية</th>
-                            <th>سعر الوحدة</th>
-                            <th>المجموع</th>
-                            <th>إجراءات</th>
-                        </tr>
-                    </thead>
-                    <tbody id="checkout-items">
-                        {{-- JS will populate items --}}
-                    </tbody>
-                    <tfoot>
-                        <tr>
-                            <td colspan="3" class="text-right font-bold">المجموع الكلي</td>
-                            <td class="font-bold" id="checkout-total">0.00</td>
-                            <td></td>
-                        </tr>
-                    </tfoot>
-                </table>
+            <table>
+                <thead>
+                    <tr>
+                        <th>المنتج</th>
+                        <th>الكمية</th>
+                        <th>سعر الوحدة</th>
+                        <th>المجموع</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody id="checkout-items">
+                    {{-- JS سيملأها --}}
+                </tbody>
+                <tfoot>
+                    <tr>
+                        <td colspan="3" class="text-right font-bold">المجموع الكلي</td>
+                        <td class="font-bold" id="checkout-total">0.00</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
 
-                <div style="text-align:right;">
-                    @auth
-                        <form id="confirm-order-form" method="POST" action="{{ route('checkout.process') }}">
-                            @csrf
-                            <button type="submit" class="btn">تأكيد الطلب</button>
-                        </form>
-                    @else
-                        <a href="{{ route('login') }}" class="btn">تسجيل الدخول لإتمام الشراء</a>
-                    @endauth
-                </div>
+            <div style="text-align:right;">
+                @auth
+                    <form id="confirm-order-form" method="POST" action="{{ route('checkout.process') }}">
+                        @csrf
+                        <input type="hidden" name="items" id="order-items">
+                        <button type="submit" class="btn">تأكيد الطلب</button>
+                    </form>
+                @else
+                    <a href="{{ route('login') }}" class="btn">تسجيل الدخول لإتمام الشراء</a>
+                @endauth
             </div>
         </div>
     </div>
@@ -96,31 +81,19 @@
         const SERVER_CART = {!! json_encode($cart) !!};
         const money = v => Number(v||0).toFixed(2) + ' {{ config("app.currency","SAR") }}';
 
-        async function fetchCart(){
-            if (GUEST) {
-                return Array.isArray(SERVER_CART) ? SERVER_CART : [];
-            }
-            try{
-                const res = await fetch("{{ route('cart.show') }}",{credentials:'same-origin',headers:{'Accept':'application/json'}});
-                if(!res.ok) return [];
-                const data = await res.json();
-                return data.cart || [];
-            }catch(e){ return []; }
-        }
-
         function render(items){
             const tbody = document.getElementById('checkout-items');
             tbody.innerHTML='';
             let total=0;
             items.forEach(it=>{
                 const qty=Number(it.quantity||1);
-                const price=Number((it.product&&it.product.price)||it.price||0);
+                const price=Number(it.product?.price||it.price||0);
                 const subtotal=qty*price;
                 total+=subtotal;
 
                 const tr=document.createElement('tr');
                 tr.innerHTML=`
-                    <td>${(it.product&&it.product.name)||it.name||'منتج'}</td>
+                    <td>${it.product?.name || it.name || 'منتج'}</td>
                     <td class="quantity-controls">
                         <button data-action="decrease" data-id="${it.product_id||it.product?.id}">-</button>
                         ${qty}
@@ -138,7 +111,8 @@
         }
 
         async function refresh(){
-            const items=await fetchCart();
+            const items = GUEST ? SERVER_CART : await fetch("{{ route('cart.show') }}",{credentials:'same-origin',headers:{'Accept':'application/json'}})
+                .then(r=>r.ok?r.json():{cart:[]}).then(d=>d.cart||[]);
             render(items);
         }
 
@@ -149,40 +123,27 @@
             const id = btn.getAttribute('data-id');
             if(!id) return;
 
-            if (GUEST) {
-                // operate on local server-passed cart for guest (session was cleared on render)
-                let items = Array.isArray(SERVER_CART) ? SERVER_CART : [];
-                const idx = items.findIndex(i => Number(i.product_id || i.product?.id) === Number(id));
-                if (idx === -1) return;
-                if (action === 'remove') {
-                    items.splice(idx,1);
-                } else {
-                    let it = items[idx];
-                    let newQty = Number(it.quantity||1) + (action === 'increase' ? 1 : -1);
-                    if (newQty <= 0) items.splice(idx,1);
-                    else items[idx].quantity = newQty;
-                }
-                // update SERVER_CART and re-render
-                window.SERVER_CART = items;
-                render(items);
-                return;
+            let items = [...SERVER_CART];
+
+            if (action==='remove'){
+                items = items.filter(i=>Number(i.product_id||i.product?.id)!==Number(id));
+            } else {
+                items = items.map(i=>{
+                    if(Number(i.product_id||i.product?.id)===Number(id)){
+                        let qty = Number(i.quantity||1) + (action==='increase'?1:-1);
+                        i.quantity = qty>0? qty:1;
+                    }
+                    return i;
+                });
             }
 
-            if(action==='remove'){
-                await fetch("{{ url('cart/remove') }}/"+id,{method:'DELETE',credentials:'same-origin',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||''}});
-                await refresh(); return;
-            }
+            window.SERVER_CART = items;
+            render(items);
+        });
 
-            const items=await fetchCart();
-            const it = items.find(i=>Number(i.product_id||i.product?.id)===Number(id));
-            if(!it) return;
-            let newQty = Number(it.quantity||1) + (action==='increase'?1:-1);
-            if(newQty<=0){
-                await fetch("{{ url('cart/remove') }}/"+id,{method:'DELETE',credentials:'same-origin',headers:{'X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||''}});
-            }else{
-                await fetch("{{ url('cart/update') }}/"+id,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json','X-CSRF-TOKEN':document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')||''},body:JSON.stringify({quantity:newQty})});
-            }
-            await refresh();
+        document.getElementById('confirm-order-form')?.addEventListener('submit', function(e){
+            const items = window.SERVER_CART || [];
+            document.getElementById('order-items').value = JSON.stringify(items);
         });
 
         document.addEventListener('DOMContentLoaded', refresh);
