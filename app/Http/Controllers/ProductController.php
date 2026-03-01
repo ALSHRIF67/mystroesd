@@ -121,7 +121,8 @@ class ProductController extends Controller
     }
 
     /**
-     * Store a newly created resource in storage.
+     * Store a newly created resour
+     * ce in storage.
      */
     public function store(Request $request)
     {
@@ -223,7 +224,7 @@ class ProductController extends Controller
         // إنشاء المنتج (سيكون قيد المراجعة)
         Product::create($validated);
 
-        return redirect()->route('products.index')
+        return redirect()->route('products.mine')
             ->with('success', 'تم إنشاء المنتج بنجاح.');
     }
 
