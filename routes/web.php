@@ -23,7 +23,23 @@ use App\Http\Controllers\Admin\{
 | Public
 |--------------------------------------------------------------------------
 */
-
+Route::get('test-email', function () {
+    try {
+        $user = App\Models\User::first();
+        
+        if (!$user) {
+            return 'No user found in database!';
+        }
+        
+        \Illuminate\Support\Facades\Mail::to('mr0348530@gamil.com')->send(
+            new \App\Mail\WelcomeNotification($user)
+        );
+        
+        return 'Email sent successfully to ' . $user->email;
+    } catch (\Exception $e) {
+        return 'Error: ' . $e->getMessage();
+    }
+});
 Route::get('/', [ProductController::class, 'home'])->name('home');
 Route::get('/seller/{user}/{slug?}', [SellerController::class, 'show'])->name('seller.show');
 
